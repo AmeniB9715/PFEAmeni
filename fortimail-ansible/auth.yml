@@ -1,7 +1,8 @@
 ---
-- name: Connexion FortiMail et réutilisation du cookie à la main
+- name: Connexion FortiMail et récupération d'informations système via API
   hosts: fortimail
   gather_facts: no
+
   vars:
     fortimail_host: "192.168.171.24"
     fortimail_username: "admin"
@@ -10,15 +11,16 @@
     info_url: "https://{{ fortimail_host }}/api/v1/SysStatusSysinfo/"
 
   tasks:
-    - name: Se connecter à FortiMail
+
+    - name: Se connecter à FortiMail (API Login)
       uri:
-	url: "{{ login_url }}"
+        url: "{{ login_url }}"
         method: POST
         headers:
           Content-Type: "application/json"
         body_format: json
         body:
-       name: "{{ fortimail_username }}"
+          name: "{{ fortimail_username }}"
           password: "{{ fortimail_password }}"
         validate_certs: no
         return_content: yes
@@ -26,10 +28,10 @@
 
     - name: Extraire le cookie APSCOOKIE
       set_fact:
-        session_cookie: "{{ login_response.set_cookie | regex_search('APSCOOKIE>
+        session_cookie: "{{ login_response.set_cookie | regex_search('APSCOOKIE=[^;]+') }}"
         csrf_token: "{{ login_response.json.csrf_token }}"
 
-    - name: Appeler une API GET avec cookie de session et CSRF token
+    - name: Appeler l'API système avec cookie + CSRF
       uri:
         url: "{{ info_url }}"
         method: GET
@@ -38,8 +40,8 @@
           Cookie: "{{ session_cookie }}"
         validate_certs: no
         return_content: yes
-    register: sysinfo_response
+      register: sysinfo_response
 
-    - name: Afficher les infos système
+    - name: Afficher les infos système FortiMail
       debug:
         var: sysinfo_response.json
